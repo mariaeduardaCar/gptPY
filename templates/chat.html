@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatBot Python</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .chat-container {
+            height: 60vh;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background-color: #f8f9fa;
+        }
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: #007bff;
+            color: white;
+            margin-left: auto;
+        }
+        .bot-message {
+            background-color: white;
+            border: 1px solid #dee2e6;
+        }
+        .timestamp {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 0.3rem;
+        }
+        .user-info {
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            background-color: #e9ecef;
+            border-radius: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="user-info d-flex justify-content-between align-items-center">
+                    <span>Bem-vindo, {{ current_user.nome }}!</span>
+                    <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm">Sair</a>
+                </div>
+
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">ChatBot Python</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="chat-container" id="chatContainer">
+                            <!-- As mensagens serão inseridas aqui -->
+                        </div>
+                        
+                        <div class="input-group mb-3">
+                            <input type="text" id="pergunta" class="form-control" placeholder="Digite sua pergunta sobre Python...">
+                            <button class="btn btn-primary" onclick="enviarPergunta()">Enviar</button>
+                        </div>
+                        
+                        <button class="btn btn-secondary" onclick="carregarHistorico()">
+                            <i class="bi bi-clock-history"></i> Carregar Histórico
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function enviarPergunta() {
+            const pergunta = document.getElementById('pergunta').value;
+            if (!pergunta) return;
+
+            // Adiciona a pergunta do usuário ao chat
+            adicionarMensagem(pergunta, true);
+            document.getElementById('pergunta').value = '';
+
+            // Envia a pergunta para o servidor
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ pergunta: pergunta })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.erro) {
+                    alert(data.erro);
+                } else {
+                    adicionarMensagem(data.resposta, false, data.timestamp);
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao enviar mensagem');
+            });
+        }
+
+        function adicionarMensagem(texto, isUsuario, timestamp = null) {
+            const container = document.getElementById('chatContainer');
+            const div = document.createElement('div');
+            div.className = `message ${isUsuario ? 'user-message' : 'bot-message'}`;
+            
+            const messageText = document.createElement('div');
+            messageText.textContent = texto;
+            div.appendChild(messageText);
+            
+            if (timestamp) {
+                const time = document.createElement('div');
+                time.className = 'timestamp';
+                time.textContent = new Date(timestamp).toLocaleString();
+                div.appendChild(time);
+            }
+            
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function carregarHistorico() {
+            fetch('/historico')
+                .then(response => response.json())
+                .then(historico => {
+                    document.getElementById('chatContainer').innerHTML = '';
+                    historico.forEach(item => {
+                        adicionarMensagem(item.pergunta, true, item.data_hora);
+                        adicionarMensagem(item.resposta, false, item.data_hora);
+                    });
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao carregar histórico');
+                });
+        }
+
+        // Adicionar evento de Enter para enviar mensagem
+        document.getElementById('pergunta').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                enviarPergunta();
+            }
+        });
+
+        // Carregar histórico ao iniciar
+        window.onload = carregarHistorico;
+    </script>
+</body>
+</html> 
